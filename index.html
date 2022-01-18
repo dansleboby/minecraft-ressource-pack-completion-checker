@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>A Basic HTML5 Template</title>
+  <meta name="description" content="A simple HTML5 Template for new projects.">
+  <meta name="author" content="SitePoint">
+
+  <meta property="og:title" content="A Basic HTML5 Template">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://www.sitepoint.com/a-basic-html5-template/">
+  <meta property="og:description" content="A simple HTML5 Template for new projects.">
+  <meta property="og:image" content="image.png">
+
+  <link rel="icon" href="/favicon.ico">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+  <link rel="stylesheet" href="css/styles.css?v=1.0">
+  
+  <style>
+    #blocks img {
+		padding: 20px;
+		background: lightgray;
+		margin: 10px;
+	}
+  </style>
+
+</head>
+
+<body>
+	<h3>Choose the local zip file of your ressource pack to see how completed it-is</h3>
+	<p class="note">Note : your browser will process the zip file, don't choose a file too big !</p>
+	<input type="file" id="file" name="file" multiple /><br />
+
+	<div id="result_block" class="hidden">
+	  <h3>Content :</h3>
+	  <div id="result"></div>
+	</div>
+	
+	<h4>Resluts:</h4>
+	<div id="blocks"></div>
+  <!-- your content here... -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js" integrity="sha512-xQBQYt9UcgblF6aCMrwU1NkVA7HCXaSN2oq0so80KO+y68M+n64FOcqgav4igHe6D5ObBLIf68DWv+gfBowczg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js" integrity="sha512-894YE6QWD5I59HgZOGReFYm4dnWc1Qt5NtvYSaNcOP+u1T9qYdvdihz0PPSiiqn/+/3e7Jo4EaG7TubfWGUrMQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  
+  <script>
+	var $result = $("#result");
+	var $blocks = $("#blocks");
+	var folder_to_compare = "assets/minecraft/textures/";
+
+	var excepted_files = fetch('assets_1.18.json')
+	  .then(response => response.json())
+	  .then((data) => {
+		data.forEach((block) => {
+			$blocks.append($('<img>', {
+				src: block, 
+				title: block,
+				id: "bl_"+block.replaceAll('/', '_').replace('.', '_')
+			})); 
+		});
+		return data;
+	  });
+	
+	
+	$("#file").on("change", function(evt) {
+		// remove content
+		$result.html("");
+		// be sure to show the results
+		$("#result_block").removeClass("hidden").addClass("show");
+
+		// Closure to capture the file information.
+		function handleFile(f) {
+			var $title = $("<h4>", {
+				text : f.name
+			});
+			var $fileContent = $("<ul>");
+			$result.append($title);
+			$result.append($fileContent);
+
+			var foundCount = 0;
+			var excepted_files_dict = {};
+			
+				
+				JSZip.loadAsync(f)                                   // 1) read the Blob
+				.then(function(zip) {
+					excepted_files.then(function(files) {
+					files.forEach(function(v, k) { excepted_files_dict[v] = false; });
+					
+					zip.forEach(function (relativePath, zipEntry) {  // 2) print entries
+						if(!zipEntry.dir && zipEntry.name.indexOf(folder_to_compare) !== -1) {
+							var fileExt = zipEntry.name.split('.').pop();
+							if(fileExt === "png" && excepted_files_dict.hasOwnProperty(zipEntry.name)) {
+								excepted_files_dict[zipEntry.name] = true;
+							}
+						}
+					});
+					
+					Object.entries(excepted_files_dict).forEach(([fileName, isFound]) => {
+						if(isFound) {foundCount = foundCount + 1; }
+						$("#bl_"+fileName.replaceAll('/', '_').replace('.', '_')).css('background', isFound ? 'green' : 'red');
+					});
+					
+					$title.text(f.name + ' (' + foundCount + '/' + Object.entries(excepted_files_dict).length +') [' + ((foundCount/Object.entries(excepted_files_dict).length)*100).toFixed(2) + '%]');
+			});
+
+			
+				
+			}, function (e) {
+				$result.append($("<div>", {
+					"class" : "alert alert-danger",
+					text : "Error reading " + f.name + ": " + e.message
+				}));
+			});
+		}
+
+		var files = evt.target.files;
+		for (var i = 0; i < files.length; i++) {
+			handleFile(files[i]);
+		}
+	});
+</script>
+</body>
+</html>
+
+
+
