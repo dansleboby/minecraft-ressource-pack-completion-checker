@@ -18,7 +18,7 @@
 </head>
 
 <body>
-	<h3>Choose the local zip file of your ressource pack to see how completed it-is</h3>
+	<h3>Choose the local zip file of your ressource pack to see how completed it-is (Only 1.18 for now)</h3>
 	<p class="note">Note : your browser will process the zip file, don't choose a file too big !</p>
 	<input type="file" id="file" name="file" multiple /><br />
 
@@ -68,13 +68,24 @@
 			$result.append($fileContent);
 
 			var foundCount = 0;
+			var foundCounts = {};
+			var exceptedCounts = {};
 			var excepted_files_dict = {};
 			
 				
 				JSZip.loadAsync(f)                                   // 1) read the Blob
 				.then(function(zip) {
 					excepted_files.then(function(files) {
-					files.forEach(function(v, k) { excepted_files_dict[v] = false; });
+					files.forEach(function(v, k) {
+					
+						var type = v.replace(folder_to_compare, '').split('/')[0];
+						if(exceptedCounts.hasOwnProperty(type)) {
+							exceptedCounts[type]++;
+						} else {
+							exceptedCounts[type] = 0;
+						}
+						excepted_files_dict[v] = false;
+					});
 					
 					zip.forEach(function (relativePath, zipEntry) {  // 2) print entries
 						if(!zipEntry.dir && zipEntry.name.indexOf(folder_to_compare) !== -1) {
@@ -86,10 +97,32 @@
 					});
 					
 					Object.entries(excepted_files_dict).forEach(([fileName, isFound]) => {
-						if(isFound) {foundCount = foundCount + 1; }
+						if(isFound) {
+							foundCount++; 
+							var type = fileName.replace(folder_to_compare, '').split('/')[0];
+							if(foundCounts.hasOwnProperty(type)) {
+								foundCounts[type]++;
+							} else {
+								foundCounts[type] = 0;
+							}
+						}
 						$("#bl_"+fileName.replaceAll('/', '_').replace('.', '_')).css('background', isFound ? 'green' : 'red');
 					});
 					
+					
+					Object.entries(exceptedCounts).forEach(([blockType, count]) => {
+						var percent = (((foundCounts.hasOwnProperty(blockType) ? foundCounts[blockType] : 0)/count)*100).toFixed(2);
+						console.log(percent);
+						if(percent == "NaN") {
+							percent = 0;
+						}
+						$fileContent.append($('<li>', {
+							text: blockType + " ("+(foundCounts.hasOwnProperty(blockType) ? foundCounts[blockType] : 0)+"/"+count+") ["+percent+"%]",
+							style: 'background: linear-gradient(to right, #1A8419 0%,#1A8419 '+percent+'%,#000000 '+percent+'%,#000000 100%);color:white;padding: 5px 10px;margin: 10px 0;'
+						}));
+					});
+					
+					console.log(foundCounts, exceptedCounts);
 					$title.text(f.name + ' (' + foundCount + '/' + Object.entries(excepted_files_dict).length +') [' + ((foundCount/Object.entries(excepted_files_dict).length)*100).toFixed(2) + '%]');
 			});
 
